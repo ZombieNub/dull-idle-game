@@ -11,13 +11,13 @@ fn main() {
     eframe::run_native(
         "eframe template",
         native_options,
-        Box::new(|cc| Box::new(dull_idle_game::TemplateApp::new(cc))),
+        Box::new(|cc| Box::new(dull_idle_game::IdleGame::new(cc))),
     );
 }
 
 // when compiling to web using trunk.
 #[cfg(target_arch = "wasm32")]
-fn main() {
+async fn main() {
     // Make sure panics are logged using `console.error`.
     console_error_panic_hook::set_once();
 
