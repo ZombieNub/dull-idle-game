@@ -17,7 +17,7 @@ fn main() {
 
 // when compiling to web using trunk.
 #[cfg(target_arch = "wasm32")]
-async fn main() {
+fn main() {
     // Make sure panics are logged using `console.error`.
     console_error_panic_hook::set_once();
 
@@ -30,7 +30,7 @@ async fn main() {
         eframe::start_web(
             "the_canvas_id", // hardcode it
             web_options,
-            Box::new(|cc| Box::new(dull_idle_game::TemplateApp::new(cc))),
+            Box::new(|cc| Box::new(dull_idle_game::IdleGame::new(cc))),
         )
         .await
         .expect("failed to start eframe");
