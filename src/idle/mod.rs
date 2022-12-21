@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use num::{BigInt, BigRational, FromPrimitive};
 use std::time::{SystemTime};
@@ -5,102 +6,41 @@ use egui::Ui;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use rand::prelude::*;
+use crate::idle::goods::{Good, GoodGroup};
 
 mod lib;
-
-trait Producer {
-    fn produce() -> BigRational;
-
-    fn cost(amt: &BigInt) -> BigRational;
-
-    fn max_can_purchase(balance: &BigRational) -> BigInt;
-}
-
-struct Generator {}
-
-impl Producer for Generator {
-    fn produce() -> BigRational {
-        BigRational::new(BigInt::from_u64(1).unwrap(), BigInt::from_u64(10).unwrap())
-    }
-
-    fn cost(amt: &BigInt) -> BigRational {
-        BigRational::new(BigInt::from_u64(10).unwrap(), BigInt::from_u64(1).unwrap()) * amt
-    }
-
-    fn max_can_purchase(balance: &BigRational) -> BigInt {
-        let cost = Self::cost(&BigInt::from_u64(1).unwrap());
-        let max = balance / cost;
-        max.floor().to_integer()
-    }
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(default)]
-struct Inventory {
-    // Inventory does nothing on its own. It's just a container for multiple different values, as well as some methods to manipulate them.
-    // Inventory should be manipulated by the GameState, which will be responsible for updating the values correctly.
-
-    // Unlike other idle games, this game will use multiple currencies.
-    // All currencies will be BigRationals, and will be displayed rounded down to the nearest integer.
-    // The first currency will be money. Money is useless on its own, but it can be exchanged for other things.
-    // Exchanging money for other things is always unproductive compared to producing the other things directly.
-    money: BigRational,
-    // The second currency will be iron ore. You can either sell it for money, or use it to make iron ingots.
-    iron_ore: BigRational,
-    // Of course, iron ingots aren't implemented yet. We'll add them once we know iron ore is sound.
-    // Also, the rest of the ores!
-    gold_ore: BigRational,
-    silver_ore: BigRational,
-}
-
-impl Default for Inventory {
-    fn default() -> Self {
-        Self {
-            money: BigRational::new(BigInt::from_u64(0).unwrap(), BigInt::from_u64(1).unwrap()),
-            iron_ore: BigRational::new(BigInt::from_u64(0).unwrap(), BigInt::from_u64(1).unwrap()),
-            gold_ore: BigRational::new(BigInt::from_u64(0).unwrap(), BigInt::from_u64(1).unwrap()),
-            silver_ore: BigRational::new(BigInt::from_u64(0).unwrap(), BigInt::from_u64(1).unwrap()),
-        }
-    }
-}
-
-impl Inventory {
-    fn display_grid(&self, ui: &mut Ui) {
-        ui.label(format!("Money: {}", self.money.to_integer()));
-        ui.end_row();
-        ui.label("Metallurgy");
-        ui.label(format!("Iron Ore: {}", self.iron_ore.to_integer()));
-        ui.label(format!("Gold Ore: {}", self.gold_ore.to_integer()));
-        ui.label(format!("Silver Ore: {}", self.silver_ore.to_integer()));
-        ui.end_row();
-    }
-
-    fn display_list(&self, ui: &mut Ui) {
-        ui.label(format!("Money: {}", self.money.to_integer()));
-        ui.label(format!("Iron Ore: {}", self.iron_ore.to_string()));
-        ui.label(format!("Gold Ore: {}", self.gold_ore.to_string()));
-        ui.label(format!("Silver Ore: {}", self.silver_ore.to_string()));
-    }
-}
+mod goods;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 struct GameState {
-    inventory: Inventory,
+    inventory: HashMap<Good, BigRational>,
 }
 
 impl Default for GameState {
     fn default() -> Self {
         Self {
-            inventory: Inventory::default(),
+            inventory: {
+                let mut map = HashMap::new();
+                for good in Good::iter() {
+                    map.insert(good, BigRational::new(BigInt::from_u64(0).unwrap(), BigInt::from_u64(1).unwrap()));
+                }
+                map
+            },
         }
     }
 }
 
 impl GameState {
     // Updates the game state by the given amount of time.
-    fn update(&mut self, millis: u128) {
+    fn update(&mut self, _millis: u128) {
         // Does nothing yet.
+    }
+
+    fn display_list(&self, ui: &mut Ui) {
+        for (good, amt) in self.inventory.iter() {
+            ui.label(format!("{}: {}", good, amt.to_string()));
+        }
     }
 }
 
@@ -126,44 +66,20 @@ impl Display for Section {
     }
 }
 
-// We also need another enum for the radio buttons that determine which ore the player is interacting with.
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone, Copy, EnumIter)]
-enum Ore {
-    Iron,
-    Gold,
-    Silver,
-}
-
-impl Default for Ore {
-    fn default() -> Self {
-        Self::Iron
-    }
-}
-
-impl Display for Ore {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Iron => write!(f, "Iron Ore"),
-            Self::Gold => write!(f, "Gold Ore"),
-            Self::Silver => write!(f, "Silver Ore"),
-        }
-    }
-}
-
 // Finally, a struct to hold the state of the ore mining mini-game. This won't be serialized.
 struct OreMinigame {
     // We don't need to care about the ore type, because we'll only ever be mining one ore at a time.
     // Instead, this is meant to provide UI elements and logic for the ore mining mini-game.
-    ore_selection: Ore,
-    initialized_for: Ore, // Needed to see if we have selected a new ore, and thus need to re-initialize the game.
+    ore_selection: Good,
+    initialized_for: Good, // Needed to see if we have selected a new ore, and thus need to re-initialize the game.
     button_order: Vec<(usize, bool)>, // The order in which the buttons should be pressed, from left to right. Will be false if the button is not pressed, and true if it is.
 }
 
 impl Default for OreMinigame {
     fn default() -> Self {
         Self {
-            ore_selection: Ore::default(),
-            initialized_for: Ore::default(),
+            ore_selection: Good::default_for_group(GoodGroup::Ore),
+            initialized_for: Good::default_for_group(GoodGroup::Ore),
             button_order: Vec::new(),
         }
     }
@@ -187,7 +103,7 @@ impl OreMinigame {
         }
     }
 
-    fn initialize_if_neccessary(&mut self) {
+    fn initialize_if_necessary(&mut self) {
         if self.ore_selection != self.initialized_for || self.button_order.is_empty() {
             self.initialized_for = self.ore_selection;
             self.initialize_new_game();
@@ -221,7 +137,7 @@ impl OreMinigame {
         // We keep grant_ore out of the for loop so that all the buttons are displayed, even if the player has already won.
         // Otherwise, the rendering might abruptly end, which would be confusing.
         // I don't think this would actually happen, but it's better to be safe than sorry.
-        for (i, (num, pressed)) in self.button_order.iter_mut().enumerate() {
+        for (_, (num, pressed)) in self.button_order.iter_mut().enumerate() {
             if ui.add_enabled(!*pressed, egui::Button::new(format!("{}", num))).clicked() {
                 // First, we need to check if the button is the next one in the sequence.
                 // If it is, we need to mark it as pressed.
@@ -287,7 +203,7 @@ impl eframe::App for IdleGame {
         let now = SystemTime::now();
         // We can use this to determine how much to increment the counter by
 
-        let time_passed = now.duration_since(self.prev_time).unwrap_or_default().as_millis();
+        let _time_passed = now.duration_since(self.prev_time).unwrap_or_default().as_millis();
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -303,7 +219,7 @@ impl eframe::App for IdleGame {
 
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
             ui.heading("Inventory");
-            self.game_state.inventory.display_list(ui);
+            self.game_state.display_list(ui);
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -318,30 +234,24 @@ impl eframe::App for IdleGame {
                 Section::Summary => {
                     ui.heading("Summary");
                     if ui.button("Debug: Add 1000").clicked() {
-                        self.game_state.inventory.money += BigRational::new(BigInt::from_i64(1000).unwrap(), BigInt::from_i64(1).unwrap());
+                        self.game_state.inventory.entry(Good::Money)
+                            .and_modify(|x| *x += BigRational::from_integer(BigInt::from(1000)))
+                            .or_insert(BigRational::from_integer(BigInt::from(1000)));
                     }
                 }
                 Section::Metallurgy => {
                     ui.heading("Metallurgy");
                     ui.label("To mine a single ore, click the buttons in order from lowest to highest.\nThe order will randomly change every time you mine an ore, or click the buttons in the wrong order.");
-                    for ore in Ore::iter() {
+                    for ore in Good::group_iter(GoodGroup::Ore) {
                         ui.horizontal(|ui| {
                             ui.selectable_value(&mut self.ore_minigame.ore_selection, ore, ore.to_string());
                             if ore == self.ore_minigame.ore_selection {
-                                self.ore_minigame.initialize_if_neccessary();
+                                self.ore_minigame.initialize_if_necessary();
                                 self.ore_minigame.display_buttons(ui);
                                 if self.ore_minigame.has_won() {
-                                    match self.ore_minigame.ore_selection {
-                                        Ore::Iron => {
-                                            self.game_state.inventory.iron_ore += BigRational::new(BigInt::from_i64(1).unwrap(), BigInt::from_i64(1).unwrap());
-                                        }
-                                        Ore::Gold => {
-                                            self.game_state.inventory.gold_ore += BigRational::new(BigInt::from_i64(1).unwrap(), BigInt::from_i64(4).unwrap());
-                                        }
-                                        Ore::Silver => {
-                                            self.game_state.inventory.silver_ore += BigRational::new(BigInt::from_i64(1).unwrap(), BigInt::from_i64(2).unwrap());
-                                        }
-                                    }
+                                    self.game_state.inventory.entry(ore)
+                                        .and_modify(|x| *x += BigRational::from_integer(BigInt::from(1)))
+                                        .or_insert(BigRational::from_integer(BigInt::from(1)));
                                     self.ore_minigame.initialize_new_game();
                                 }
                             }
