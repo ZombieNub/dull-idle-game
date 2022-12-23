@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use num::{BigInt, BigRational, FromPrimitive};
 use std::time::{SystemTime};
-use egui::Ui;
+use egui::{Align, Ui};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use rand::prelude::*;
@@ -38,9 +38,16 @@ impl GameState {
     }
 
     fn display_list(&self, ui: &mut Ui) {
-        for (good, amt) in self.inventory.iter() {
-            ui.label(format!("{}: {}", good, amt.to_string()));
-        }
+        let mut sorted_inventory = self.inventory.iter().collect::<Vec<_>>();
+        sorted_inventory.sort_by(|a, b| a.0.cmp(b.0));
+        ui.columns(2, |columns| {
+            for (good, amount) in sorted_inventory {
+                columns[0].label(good.to_string());
+                columns[1].with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                    ui.label(amount.to_string());
+                });
+            }
+        });
     }
 }
 
@@ -230,9 +237,11 @@ impl eframe::App for IdleGame {
                     ui.selectable_value(&mut self.selection, section, section.to_string());
                 }
             });
+            ui.add(egui::Separator::default().horizontal().spacing(6.0));
             match self.selection {
                 Section::Summary => {
                     ui.heading("Summary");
+                    ui.add(egui::Separator::default().horizontal().spacing(4.0));
                     if ui.button("Debug: Add 1000").clicked() {
                         self.game_state.inventory.entry(Good::Money)
                             .and_modify(|x| *x += BigRational::from_integer(BigInt::from(1000)))
@@ -241,7 +250,9 @@ impl eframe::App for IdleGame {
                 }
                 Section::Metallurgy => {
                     ui.heading("Metallurgy");
+                    ui.add(egui::Separator::default().horizontal().spacing(4.0));
                     ui.label("To mine a single ore, click the buttons in order from lowest to highest.\nThe order will randomly change every time you mine an ore, or click the buttons in the wrong order.");
+                    ui.add(egui::Separator::default().horizontal().spacing(4.0));
                     for ore in Good::group_iter(GoodGroup::Ore) {
                         ui.horizontal(|ui| {
                             ui.selectable_value(&mut self.ore_minigame.ore_selection, ore, ore.to_string());
