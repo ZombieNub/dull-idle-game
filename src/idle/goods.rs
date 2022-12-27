@@ -16,31 +16,32 @@ pub enum GoodGroup {
     Ore,
 }
 
-pub struct Properties {
+#[derive(PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
+pub struct GoodProperties {
     name: &'static str,
     group: GoodGroup,
     difficulty: u8,
 }
 
 impl Good {
-    pub fn properties(&self) -> Properties {
+    pub fn properties(&self) -> GoodProperties {
         match self {
-            Good::Money => Properties {
+            Good::Money => GoodProperties {
                 name: "Money",
                 group: GoodGroup::Money,
                 difficulty: 0,
             },
-            Good::IronOre => Properties {
+            Good::IronOre => GoodProperties {
                 name: "Iron Ore",
                 group: GoodGroup::Ore,
                 difficulty: 1,
             },
-            Good::GoldOre => Properties {
+            Good::GoldOre => GoodProperties {
                 name: "Gold Ore",
                 group: GoodGroup::Ore,
                 difficulty: 3,
             },
-            Good::SilverOre => Properties {
+            Good::SilverOre => GoodProperties {
                 name: "Silver Ore",
                 group: GoodGroup::Ore,
                 difficulty: 2,

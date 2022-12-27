@@ -1,20 +1,23 @@
-use std::collections::HashMap;
+use std::collections::{HashMap};
 use std::fmt::{Display, Formatter};
 use num::{BigInt, BigRational, FromPrimitive};
 use egui::{Align, Ui};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use crate::idle::goods::{Good, GoodGroup};
+use crate::idle::producers::{Producer};
 
 mod lib;
 mod goods;
 mod ores;
+mod producers;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 struct GameState {
     inventory: HashMap<Good, BigRational>,
-    ore_minigames: HashMap<Good, ores::OreMinigame>
+    producers: Vec<Producer>,
+    ore_minigames: HashMap<Good, ores::OreMinigame>,
 }
 
 impl Default for GameState {
@@ -26,6 +29,9 @@ impl Default for GameState {
                     map.insert(good, BigRational::new(BigInt::from_u64(0).unwrap(), BigInt::from_u64(1).unwrap()));
                 }
                 map
+            },
+            producers: {
+                Vec::new()
             },
             ore_minigames: {
                 let mut map = HashMap::new();
@@ -40,8 +46,10 @@ impl Default for GameState {
 
 impl GameState {
     // Updates the game state by the given amount of time.
-    fn _update(&mut self, _millis: u128) {
-        // Does nothing yet.
+    fn update(&mut self, seconds: BigRational) {
+        for producer in self.producers.iter() {
+            producer.produce(&mut self.inventory, &seconds);
+        }
     }
 
     fn display_list(&self, ui: &mut Ui) {
@@ -51,7 +59,7 @@ impl GameState {
             for (good, amount) in sorted_inventory {
                 columns[0].label(good.to_string());
                 columns[1].with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                    ui.label(amount.to_string());
+                    ui.label(amount.to_integer().to_string());
                 });
             }
         });
@@ -117,11 +125,15 @@ impl IdleGame {
 
 impl eframe::App for IdleGame {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let DEBUG = true;
         // Before we do anything, we need to calculate the amount of time that has passed since the last update
         let now = chrono::Utc::now();
         // We can use this to determine how much to increment the counter by
 
-        let _time_passed = now - self.prev_time;
+        let time_passed = now - self.prev_time;
+        let millis_passed = time_passed.num_milliseconds();
+        let seconds_passed = BigRational::new(BigInt::from_i64(millis_passed).unwrap(), BigInt::from_i64(1000).unwrap());
+        self.game_state.update(seconds_passed);
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -140,6 +152,13 @@ impl eframe::App for IdleGame {
             self.game_state.display_list(ui);
         });
 
+        egui::SidePanel::right("producers_panel").show(ctx, |ui| {
+            ui.heading("Producers");
+            for producer in self.game_state.producers.iter() {
+                ui.label(producer.to_string());
+            }
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             // I'll need something to replicate a header bar. Top panel doesn't work as it's not a widget.
             // Guess I can mess around with styles to make it look like a header bar.
@@ -153,10 +172,22 @@ impl eframe::App for IdleGame {
                 Section::Summary => {
                     ui.heading("Summary");
                     ui.add(egui::Separator::default().horizontal().spacing(4.0));
-                    if ui.button("Debug: Add 1000").clicked() {
-                        self.game_state.inventory.entry(Good::Money)
-                            .and_modify(|x| *x += BigRational::from_integer(BigInt::from(1000)))
-                            .or_insert(BigRational::from_integer(BigInt::from(1000)));
+                    if DEBUG {
+                        if ui.button("Debug: Add 1000 dollars").clicked() {
+                            self.game_state.inventory.entry(Good::Money)
+                                .and_modify(|x| *x += BigRational::from_integer(BigInt::from(1000)))
+                                .or_insert(BigRational::from_integer(BigInt::from(1000)));
+                        }
+                        for ore in Good::group_iter(GoodGroup::Ore) {
+                            if ui.button(format!("Debug: Add 1000 {}", ore)).clicked() {
+                                self.game_state.inventory.entry(ore)
+                                    .and_modify(|x| *x += BigRational::from_integer(BigInt::from(1000)))
+                                    .or_insert(BigRational::from_integer(BigInt::from(1000)));
+                            }
+                            if ui.button(format!("Debug: Add {} gravity drill", ore)).clicked() {
+                                self.game_state.producers.push(Producer::GravityDrill(ore));
+                            }
+                        }
                     }
                 }
                 Section::Metallurgy => {
