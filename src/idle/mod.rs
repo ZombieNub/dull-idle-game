@@ -12,7 +12,7 @@ mod goods;
 mod ores;
 mod producers;
 
-type F = fraction::BigFraction;
+type F = fraction::GenericFraction<fraction::BigInt>;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(default)]
@@ -38,7 +38,7 @@ impl Default for GameState {
             ore_minigames: {
                 let mut map = HashMap::new();
                 for good in Good::group_iter(GoodGroup::Ore) {
-                    map.insert(good, ores::OreMinigame::new());
+                    map.insert(good, ores::OreMinigame::new(good.properties().difficulty));
                 }
                 map
             }
@@ -189,6 +189,9 @@ impl eframe::App for IdleGame {
                             if ui.button(format!("Debug: Add {} gravity drill", ore)).clicked() {
                                 self.game_state.producers.push(Producer::GravityDrill(ore));
                             }
+                            if ui.button(format!("Debug: Add {} coal drill", ore)).clicked() {
+                                self.game_state.producers.push(Producer::CoalDrill(ore));
+                            }
                         }
                     }
                 }
@@ -200,7 +203,7 @@ impl eframe::App for IdleGame {
                     egui::Grid::new("ore_interface").show(ui, |ui| {
                         for ore in Good::group_iter(GoodGroup::Ore) {
                             ui.label(format!("{}", ore));
-                            let om = self.game_state.ore_minigames.entry(ore).or_insert(ores::OreMinigame::new());
+                            let om = self.game_state.ore_minigames.entry(ore).or_insert(ores::OreMinigame::new(ore.properties().difficulty));
                             ui.with_layout(egui::Layout::left_to_right(Align::Min), |ui| {
                                 om.ui(ui).reset_if_failed().do_if_solved(|_| {
                                     self.game_state.inventory.entry(ore)

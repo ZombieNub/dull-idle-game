@@ -2,25 +2,26 @@ use std::fmt::{Display, Formatter};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone, Copy, EnumIter, Hash, PartialOrd, Ord)]
+#[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone, Copy, EnumIter, Hash, PartialOrd, Ord, Debug)]
 pub enum Good {
     Money,
     IronOre,
     GoldOre,
     SilverOre,
+    Coal,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone, Copy, EnumIter, Hash, PartialOrd, Ord)]
+#[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone, Copy, EnumIter, Hash, PartialOrd, Ord, Debug)]
 pub enum GoodGroup {
     Money,
     Ore,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord, Debug)]
 pub struct GoodProperties {
-    name: &'static str,
-    group: GoodGroup,
-    difficulty: u8,
+    pub name: &'static str,
+    pub group: GoodGroup,
+    pub difficulty: u32,
 }
 
 impl Good {
@@ -34,17 +35,22 @@ impl Good {
             Good::IronOre => GoodProperties {
                 name: "Iron Ore",
                 group: GoodGroup::Ore,
-                difficulty: 1,
+                difficulty: 3,
             },
             Good::GoldOre => GoodProperties {
                 name: "Gold Ore",
                 group: GoodGroup::Ore,
-                difficulty: 3,
+                difficulty: 5,
             },
             Good::SilverOre => GoodProperties {
                 name: "Silver Ore",
                 group: GoodGroup::Ore,
-                difficulty: 2,
+                difficulty: 4,
+            },
+            Good::Coal => GoodProperties {
+                name: "Coal",
+                group: GoodGroup::Ore,
+                difficulty: 3,
             },
         }
     }

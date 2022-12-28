@@ -1,11 +1,12 @@
 use rand::prelude::*;
 
 // Another version of the OreMinigame, but refactored to be a UI element decoupled from the game state.
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 #[serde(default)]
 pub struct OreMinigame {
     order: Vec<u32>,
     pressed: Vec<u32>,
+    difficulty: u32,
 }
 
 impl Default for OreMinigame {
@@ -18,13 +19,23 @@ impl Default for OreMinigame {
                 vec
             },
             pressed: Vec::new(),
+            difficulty: 5,
         }
     }
 }
 
 impl OreMinigame {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(difficulty: u32) -> Self {
+        let mut rng = thread_rng();
+        Self {
+            order: {
+                let mut vec: Vec<u32> = (1..=difficulty).collect();
+                vec.shuffle(&mut rng);
+                vec
+            },
+            pressed: Vec::new(),
+            difficulty,
+        }
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) -> &mut Self {
@@ -42,7 +53,7 @@ impl OreMinigame {
     pub fn is_failed(&self) -> bool {
         // Failed if we press the sequence out of order. This occurs if the pressed sequence is not a prefix of the order sequence.
         let mut pressed_iter = self.pressed.iter();
-        for value in 1..=5 {
+        for value in 1..=self.difficulty {
             match pressed_iter.next() {
                 Some(pressed_value) => {
                     if *pressed_value != value {
@@ -58,7 +69,7 @@ impl OreMinigame {
     }
 
     pub fn reset(&mut self) -> &mut Self {
-        *self = Self::default();
+        *self = Self::new(self.difficulty);
         self
     }
 
