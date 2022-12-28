@@ -1,7 +1,7 @@
 use std::collections::{HashMap};
 use std::fmt::{Display, Formatter};
-use num::{BigInt, BigRational, FromPrimitive};
 use egui::{Align, Ui};
+use egui::widget_text::RichText;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use crate::idle::goods::{Good, GoodGroup};
@@ -12,10 +12,12 @@ mod goods;
 mod ores;
 mod producers;
 
+type F = fraction::BigFraction;
+
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 struct GameState {
-    inventory: HashMap<Good, BigRational>,
+    inventory: HashMap<Good, F>,
     producers: Vec<Producer>,
     ore_minigames: HashMap<Good, ores::OreMinigame>,
 }
@@ -26,7 +28,7 @@ impl Default for GameState {
             inventory: {
                 let mut map = HashMap::new();
                 for good in Good::iter() {
-                    map.insert(good, BigRational::new(BigInt::from_u64(0).unwrap(), BigInt::from_u64(1).unwrap()));
+                    map.insert(good, F::from(0));
                 }
                 map
             },
@@ -46,7 +48,7 @@ impl Default for GameState {
 
 impl GameState {
     // Updates the game state by the given amount of time.
-    fn update(&mut self, seconds: BigRational) {
+    fn update(&mut self, seconds: F) {
         for producer in self.producers.iter() {
             producer.produce(&mut self.inventory, &seconds);
         }
@@ -59,7 +61,7 @@ impl GameState {
             for (good, amount) in sorted_inventory {
                 columns[0].label(good.to_string());
                 columns[1].with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                    ui.label(amount.to_integer().to_string());
+                    ui.label(RichText::new(format!("{:.0}", amount)));
                 });
             }
         });
@@ -125,14 +127,14 @@ impl IdleGame {
 
 impl eframe::App for IdleGame {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let DEBUG = true;
+        let debug = true;
         // Before we do anything, we need to calculate the amount of time that has passed since the last update
         let now = chrono::Utc::now();
         // We can use this to determine how much to increment the counter by
 
         let time_passed = now - self.prev_time;
         let millis_passed = time_passed.num_milliseconds();
-        let seconds_passed = BigRational::new(BigInt::from_i64(millis_passed).unwrap(), BigInt::from_i64(1000).unwrap());
+        let seconds_passed = F::from(millis_passed) / F::from(1000);
         self.game_state.update(seconds_passed);
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -172,17 +174,17 @@ impl eframe::App for IdleGame {
                 Section::Summary => {
                     ui.heading("Summary");
                     ui.add(egui::Separator::default().horizontal().spacing(4.0));
-                    if DEBUG {
+                    if debug {
                         if ui.button("Debug: Add 1000 dollars").clicked() {
                             self.game_state.inventory.entry(Good::Money)
-                                .and_modify(|x| *x += BigRational::from_integer(BigInt::from(1000)))
-                                .or_insert(BigRational::from_integer(BigInt::from(1000)));
+                                .and_modify(|x| *x += F::from(1000))
+                                .or_insert(F::from(1000));
                         }
                         for ore in Good::group_iter(GoodGroup::Ore) {
                             if ui.button(format!("Debug: Add 1000 {}", ore)).clicked() {
                                 self.game_state.inventory.entry(ore)
-                                    .and_modify(|x| *x += BigRational::from_integer(BigInt::from(1000)))
-                                    .or_insert(BigRational::from_integer(BigInt::from(1000)));
+                                    .and_modify(|x| *x += F::from(1000))
+                                    .or_insert(F::from(1000));
                             }
                             if ui.button(format!("Debug: Add {} gravity drill", ore)).clicked() {
                                 self.game_state.producers.push(Producer::GravityDrill(ore));
@@ -202,8 +204,8 @@ impl eframe::App for IdleGame {
                             ui.with_layout(egui::Layout::left_to_right(Align::Min), |ui| {
                                 om.ui(ui).reset_if_failed().do_if_solved(|_| {
                                     self.game_state.inventory.entry(ore)
-                                        .and_modify(|x| *x += BigRational::from_integer(BigInt::from(1)))
-                                        .or_insert(BigRational::from_integer(BigInt::from(1)));
+                                        .and_modify(|x| *x += F::from(1))
+                                        .or_insert(F::from(1));
                                 }).reset_if_solved();
                             });
                             ui.end_row();

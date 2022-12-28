@@ -621,6 +621,7 @@ dependencies = [
  "console_error_panic_hook",
  "eframe",
  "egui",
+ "fraction",
  "getrandom",
  "num",
  "rand",
@@ -862,6 +863,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9c384f161156f5260c24a097c56119f9be8c798586aecc13afbcbe7b7e26bf8"
 dependencies = [
  "percent-encoding",
+]
+
+[[package]]
+name = "fraction"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7aa5de57a62c2440ece64342ea59efb7171aa7d016faf8dfcb8795066a17146b"
+dependencies = [
+ "lazy_static",
+ "num",
+ "serde",
+ "serde_derive",
 ]
 
 [[package]]
