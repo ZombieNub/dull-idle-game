@@ -130,9 +130,7 @@ impl eframe::App for IdleGame {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let tick_rate = F::new(I::from(1), I::from(1));
         let tick_limit = 100;
-        // Before we do anything, we need to calculate the amount of time that has passed since the last update
         let now = chrono::Utc::now();
-        // We can use this to determine how much to increment the counter by
 
         let time_passed = now - self.prev_time;
         let millis_passed = time_passed.num_milliseconds();
