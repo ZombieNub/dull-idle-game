@@ -1,7 +1,6 @@
-use std::cmp::min;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use num::{BigInt, BigRational, Zero};
+use num::{BigInt, BigRational};
 use strum_macros::EnumIter;
 use crate::idle::goods::{Good, GoodGroup};
 
@@ -67,35 +66,31 @@ impl Producer {
         }
     }
 
-    pub fn produce(&self, inventory: &mut HashMap<Good, F>, seconds: &F) {
-        // Each producer has inputs and outputs. We should only produce up to the inputs we have.
-        // First, we need to calculate the maximum amount of inputs we can consume.
-        if seconds.is_zero() { // Sometimes, we get a zero second update. This results in a divide by zero error, and we shouldn't be producing anything anyway.
-            return;
+    pub fn tick(&self, inventory: &mut HashMap<Good, F>) {
+        if self.has_enough_inputs(inventory) {
+            self.tick_inventory(inventory);
         }
-        let mut max_input_modifiers = Vec::new();
+    }
+
+    fn has_enough_inputs(&self, inventory: &HashMap<Good, F>) -> bool {
         for (good, amount) in self.properties().inputs.iter() {
-            let scaled_amount = amount.clone() * seconds.clone();
-            let inventory_amount = inventory.entry(*good).or_insert(F::from(I::from(0)));
-            let scaled_inventory_amount = inventory_amount.clone() * seconds.clone();
-            max_input_modifiers.push(min(scaled_inventory_amount / scaled_amount, seconds.clone()));
-        }
-        let max_input_modifier = {
-            if self.properties().inputs.is_empty() { // If there are no inputs, we can produce as much as we want.
-                F::from(seconds.clone())
-            } else {
-                max_input_modifiers.iter().min().unwrap_or(&F::from(I::from(0))).clone()
+            let alt_amount = F::from(I::from(0));
+            let inventory_amount = inventory.get(good).unwrap_or(&alt_amount);
+            if inventory_amount < amount {
+                return false;
             }
-        };
-        // Now, we can produce the outputs.
+        }
+        true
+    }
+
+    fn tick_inventory(&self, inventory: &mut HashMap<Good, F>) {
         for (good, amount) in self.properties().outputs.iter() {
             let inventory_amount = inventory.entry(*good).or_insert(F::from(I::from(0)));
-            *inventory_amount += amount.clone() * max_input_modifier.clone();
+            *inventory_amount += amount;
         }
-        // Finally, we can consume the inputs.
         for (good, amount) in self.properties().inputs.iter() {
             let inventory_amount = inventory.entry(*good).or_insert(F::from(I::from(0)));
-            *inventory_amount -= amount.clone() * max_input_modifier.clone();
+            *inventory_amount -= amount;
         }
     }
 }

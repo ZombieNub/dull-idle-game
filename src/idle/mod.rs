@@ -49,10 +49,10 @@ impl Default for GameState {
 }
 
 impl GameState {
-    // Updates the game state by the given amount of time.
-    fn update(&mut self, seconds: F) {
+    // Updates the game state by a single tick.
+    fn tick(&mut self) {
         for producer in self.producers.iter() {
-            producer.produce(&mut self.inventory, &seconds);
+            producer.tick(&mut self.inventory);
         }
     }
 
@@ -63,7 +63,7 @@ impl GameState {
             for (good, amount) in sorted_inventory {
                 columns[0].label(good.to_string());
                 columns[1].with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                    ui.label(RichText::new(format!("{:.0}", amount)));
+                    ui.label(RichText::new(format!("{:.0}", amount.floor())));
                 });
             }
         });
@@ -96,6 +96,7 @@ impl Display for Section {
 #[serde(default)]
 pub struct IdleGame {
     prev_time: chrono::DateTime<chrono::Utc>,
+    game_timer: F,
     game_state: GameState,
     selection: Section,
     debug_amt_slider: I,
@@ -106,6 +107,7 @@ impl Default for IdleGame {
         Self {
             prev_time: chrono::Utc::now(),
             game_state: GameState::default(),
+            game_timer: F::new(I::from(0), I::from(1)),
             selection: Section::default(),
             debug_amt_slider: I::from(100),
         }
@@ -114,24 +116,20 @@ impl Default for IdleGame {
 
 impl IdleGame {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // If debug is set to true, then we don't load the save file. Instead, we just use the default
-        // Useful because the save is going to keep changing as I add more features, and there is a risk
-        // of the save file becoming incompatible with the new version of the game
-        let debug = false;
-
-        if !debug {
-            if let Some(storage) = cc.storage {
-                return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-            }
+        if let Some(storage) = cc.storage {
+            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         }
 
         Default::default()
     }
 }
 
+const DEBUG: bool = true;
+
 impl eframe::App for IdleGame {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let debug = true;
+        let tick_rate = F::new(I::from(1), I::from(1));
+        let tick_limit = 100;
         // Before we do anything, we need to calculate the amount of time that has passed since the last update
         let now = chrono::Utc::now();
         // We can use this to determine how much to increment the counter by
@@ -139,7 +137,14 @@ impl eframe::App for IdleGame {
         let time_passed = now - self.prev_time;
         let millis_passed = time_passed.num_milliseconds();
         let seconds_passed = F::new(I::from(millis_passed), I::from(1000));
-        self.game_state.update(seconds_passed);
+        self.game_timer += seconds_passed;
+        self.prev_time = chrono::Utc::now();
+        let mut ticks = 0;
+        while self.game_timer >= tick_rate.clone() && ticks < tick_limit {
+            self.game_state.tick();
+            self.game_timer -= tick_rate.clone();
+            ticks += 1;
+        }
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -178,11 +183,14 @@ impl eframe::App for IdleGame {
                 Section::Summary => {
                     ui.heading("Summary");
                     ui.add(egui::Separator::default().horizontal().spacing(4.0));
-                    if debug {
+                    if DEBUG {
                         let mut temp = self.debug_amt_slider.to_i64().unwrap();
                         ui.add(egui::Slider::new(&mut temp, 0..=1000).text("Debug Amount"));
                         self.debug_amt_slider = I::from(temp);
                         let debug_amt = F::new(self.debug_amt_slider.clone(), I::from(1));
+                        if ui.button(format!("Debug: Add {} seconds", debug_amt)).clicked() {
+                            self.game_timer += F::new(self.debug_amt_slider.clone(), I::from(1));
+                        }
                         if ui.button(format!("Debug: Add {} dollars", debug_amt.clone())).clicked() {
                             self.game_state.inventory.entry(Good::Money)
                                 .and_modify(|x| *x += debug_amt.clone())
@@ -225,9 +233,6 @@ impl eframe::App for IdleGame {
                 }
             }
         });
-
-        // All of our calculations are over, so we can update the time
-        self.prev_time = chrono::Utc::now();
         ctx.request_repaint();
     }
 
