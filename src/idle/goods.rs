@@ -55,7 +55,7 @@ impl Good {
         }
     }
 
-    pub fn default_for_group(group: GoodGroup) -> Good {
+    pub fn _default_for_group(group: GoodGroup) -> Good {
         match group {
             GoodGroup::Money => Good::Money,
             GoodGroup::Ore => Good::IronOre,

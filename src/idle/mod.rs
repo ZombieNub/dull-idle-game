@@ -2,6 +2,7 @@ use std::collections::{HashMap};
 use std::fmt::{Display, Formatter};
 use egui::{Align, Ui};
 use egui::widget_text::RichText;
+use num::{BigInt, BigRational, ToPrimitive};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use crate::idle::goods::{Good, GoodGroup};
@@ -12,7 +13,8 @@ mod goods;
 mod ores;
 mod producers;
 
-type F = fraction::GenericFraction<fraction::BigInt>;
+type F = BigRational;
+type I = BigInt;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(default)]
@@ -28,7 +30,7 @@ impl Default for GameState {
             inventory: {
                 let mut map = HashMap::new();
                 for good in Good::iter() {
-                    map.insert(good, F::from(0));
+                    map.insert(good, F::new(I::from(0), I::from(1)));
                 }
                 map
             },
@@ -96,6 +98,7 @@ pub struct IdleGame {
     prev_time: chrono::DateTime<chrono::Utc>,
     game_state: GameState,
     selection: Section,
+    debug_amt_slider: I,
 }
 
 impl Default for IdleGame {
@@ -104,6 +107,7 @@ impl Default for IdleGame {
             prev_time: chrono::Utc::now(),
             game_state: GameState::default(),
             selection: Section::default(),
+            debug_amt_slider: I::from(100),
         }
     }
 }
@@ -134,7 +138,7 @@ impl eframe::App for IdleGame {
 
         let time_passed = now - self.prev_time;
         let millis_passed = time_passed.num_milliseconds();
-        let seconds_passed = F::from(millis_passed) / F::from(1000);
+        let seconds_passed = F::new(I::from(millis_passed), I::from(1000));
         self.game_state.update(seconds_passed);
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -175,16 +179,20 @@ impl eframe::App for IdleGame {
                     ui.heading("Summary");
                     ui.add(egui::Separator::default().horizontal().spacing(4.0));
                     if debug {
-                        if ui.button("Debug: Add 1000 dollars").clicked() {
+                        let mut temp = self.debug_amt_slider.to_i64().unwrap();
+                        ui.add(egui::Slider::new(&mut temp, 0..=1000).text("Debug Amount"));
+                        self.debug_amt_slider = I::from(temp);
+                        let debug_amt = F::new(self.debug_amt_slider.clone(), I::from(1));
+                        if ui.button(format!("Debug: Add {} dollars", debug_amt.clone())).clicked() {
                             self.game_state.inventory.entry(Good::Money)
-                                .and_modify(|x| *x += F::from(1000))
-                                .or_insert(F::from(1000));
+                                .and_modify(|x| *x += debug_amt.clone())
+                                .or_insert(debug_amt.clone());
                         }
                         for ore in Good::group_iter(GoodGroup::Ore) {
-                            if ui.button(format!("Debug: Add 1000 {}", ore)).clicked() {
+                            if ui.button(format!("Debug: Add {} {}", debug_amt.clone(), ore)).clicked() {
                                 self.game_state.inventory.entry(ore)
-                                    .and_modify(|x| *x += F::from(1000))
-                                    .or_insert(F::from(1000));
+                                    .and_modify(|x| *x += debug_amt.clone())
+                                    .or_insert(debug_amt.clone());
                             }
                             if ui.button(format!("Debug: Add {} gravity drill", ore)).clicked() {
                                 self.game_state.producers.push(Producer::GravityDrill(ore));
@@ -207,8 +215,8 @@ impl eframe::App for IdleGame {
                             ui.with_layout(egui::Layout::left_to_right(Align::Min), |ui| {
                                 om.ui(ui).reset_if_failed().do_if_solved(|_| {
                                     self.game_state.inventory.entry(ore)
-                                        .and_modify(|x| *x += F::from(1))
-                                        .or_insert(F::from(1));
+                                        .and_modify(|x| *x += F::from(I::from(1)))
+                                        .or_insert(F::from(I::from(1)));
                                 }).reset_if_solved();
                             });
                             ui.end_row();

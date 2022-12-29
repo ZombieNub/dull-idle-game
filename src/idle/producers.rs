@@ -1,11 +1,12 @@
 use std::cmp::min;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use strum::IntoEnumIterator;
+use num::{BigInt, BigRational, Zero};
 use strum_macros::EnumIter;
 use crate::idle::goods::{Good, GoodGroup};
 
-type F = fraction::GenericFraction<fraction::BigInt>;
+type F = BigRational;
+type I = BigInt;
 
 #[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone, Copy, EnumIter, Hash, PartialOrd, Ord, Debug)]
 pub enum Producer {
@@ -26,16 +27,16 @@ impl Producer {
         match self {
             Producer::None => ProducerProperties {
                 name: "None",
-                cost: F::from(0),
+                cost: F::from(I::from(0)),
                 outputs: HashMap::new(),
                 inputs: HashMap::new(),
             },
             Producer::GravityDrill(good) => ProducerProperties {
                 name: "Gravity Drill",
-                cost: F::from(10),
+                cost: F::from(I::from(10)),
                 outputs: {
                     let mut map = HashMap::new();
-                    map.insert(*good, F::from(1));
+                    map.insert(*good, F::from(I::from(1)));
                     map
                 },
                 inputs: {
@@ -44,36 +45,38 @@ impl Producer {
             },
             Producer::CoalDrill(good) => ProducerProperties {
                 name: "Coal Drill",
-                cost: F::from(10),
+                cost: F::from(I::from(10)),
                 outputs: {
                     let mut map = HashMap::new();
-                    map.insert(*good, F::from(1));
+                    map.insert(*good, F::from(I::from(1)));
                     map
                 },
                 inputs: {
                     let mut map = HashMap::new();
-                    map.insert(Good::Coal, F::from(1) / F::from(4));
+                    map.insert(Good::Coal, F::new(I::from(1), I::from(4)));
                     map
                 },
             },
         }
     }
 
-    pub fn default_for_group(group: GoodGroup) -> Producer {
+    pub fn _default_for_group(group: GoodGroup) -> Producer {
         match group {
             GoodGroup::Money => Producer::None,
-            GoodGroup::Ore => Producer::GravityDrill(Good::default_for_group(group)),
+            GoodGroup::Ore => Producer::GravityDrill(Good::_default_for_group(group)),
         }
     }
 
     pub fn produce(&self, inventory: &mut HashMap<Good, F>, seconds: &F) {
-        //println!("{}: Producing {:?} for {} seconds", self.properties().name, self.properties().outputs, seconds);
         // Each producer has inputs and outputs. We should only produce up to the inputs we have.
         // First, we need to calculate the maximum amount of inputs we can consume.
+        if seconds.is_zero() { // Sometimes, we get a zero second update. This results in a divide by zero error, and we shouldn't be producing anything anyway.
+            return;
+        }
         let mut max_input_modifiers = Vec::new();
         for (good, amount) in self.properties().inputs.iter() {
             let scaled_amount = amount.clone() * seconds.clone();
-            let inventory_amount = inventory.entry(*good).or_insert(F::from(0));
+            let inventory_amount = inventory.entry(*good).or_insert(F::from(I::from(0)));
             let scaled_inventory_amount = inventory_amount.clone() * seconds.clone();
             max_input_modifiers.push(min(scaled_inventory_amount / scaled_amount, seconds.clone()));
         }
@@ -81,17 +84,17 @@ impl Producer {
             if self.properties().inputs.is_empty() { // If there are no inputs, we can produce as much as we want.
                 F::from(seconds.clone())
             } else {
-                max_input_modifiers.iter().min().unwrap_or(&F::from(0)).clone()
+                max_input_modifiers.iter().min().unwrap_or(&F::from(I::from(0))).clone()
             }
         };
         // Now, we can produce the outputs.
         for (good, amount) in self.properties().outputs.iter() {
-            let inventory_amount = inventory.entry(*good).or_insert(F::from(0));
+            let inventory_amount = inventory.entry(*good).or_insert(F::from(I::from(0)));
             *inventory_amount += amount.clone() * max_input_modifier.clone();
         }
         // Finally, we can consume the inputs.
         for (good, amount) in self.properties().inputs.iter() {
-            let inventory_amount = inventory.entry(*good).or_insert(F::from(0));
+            let inventory_amount = inventory.entry(*good).or_insert(F::from(I::from(0)));
             *inventory_amount -= amount.clone() * max_input_modifier.clone();
         }
     }
