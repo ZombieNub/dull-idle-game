@@ -66,31 +66,31 @@ impl Producer {
         }
     }
 
-    pub fn tick(&self, inventory: &mut HashMap<Good, F>) {
-        if self.has_enough_inputs(inventory) {
-            self.tick_inventory(inventory);
+    pub fn tick(&self, inventory: &mut HashMap<Good, F>, tick_rate: &F) {
+        if self.has_enough_inputs(inventory, tick_rate) {
+            self.tick_inventory(inventory, tick_rate);
         }
     }
 
-    fn has_enough_inputs(&self, inventory: &HashMap<Good, F>) -> bool {
+    fn has_enough_inputs(&self, inventory: &HashMap<Good, F>, tick_rate: &F) -> bool {
         for (good, amount) in self.properties().inputs.iter() {
             let alt_amount = F::from(I::from(0));
             let inventory_amount = inventory.get(good).unwrap_or(&alt_amount);
-            if inventory_amount < amount {
+            if *inventory_amount < amount * tick_rate {
                 return false;
             }
         }
         true
     }
 
-    fn tick_inventory(&self, inventory: &mut HashMap<Good, F>) {
+    fn tick_inventory(&self, inventory: &mut HashMap<Good, F>, tick_rate: &F) {
         for (good, amount) in self.properties().outputs.iter() {
             let inventory_amount = inventory.entry(*good).or_insert(F::from(I::from(0)));
-            *inventory_amount += amount;
+            *inventory_amount += amount * tick_rate;
         }
         for (good, amount) in self.properties().inputs.iter() {
             let inventory_amount = inventory.entry(*good).or_insert(F::from(I::from(0)));
-            *inventory_amount -= amount;
+            *inventory_amount -= amount * tick_rate;
         }
     }
 }

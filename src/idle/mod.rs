@@ -50,20 +50,46 @@ impl Default for GameState {
 
 impl GameState {
     // Updates the game state by a single tick.
-    fn tick(&mut self) {
+    fn tick(&mut self, tick_rate: &F) {
         for producer in self.producers.iter() {
-            producer.tick(&mut self.inventory);
+            producer.tick(&mut self.inventory, tick_rate);
         }
+    }
+
+    fn production_table_theoretical(&self) -> HashMap<Good, (F, F)> {
+        let mut hashmap = HashMap::new();
+        for producer in self.producers.iter() {
+            let properties = producer.properties();
+            for (good, amount) in properties.outputs.iter() {
+                hashmap.entry(*good).or_insert((F::from(I::from(0)), F::from(I::from(0)))).0 += amount;
+            }
+            for (good, amount) in properties.inputs.iter() {
+                hashmap.entry(*good).or_insert((F::from(I::from(0)), F::from(I::from(0)))).1 += amount;
+            }
+        }
+        hashmap
     }
 
     fn display_list(&self, ui: &mut Ui) {
         let mut sorted_inventory = self.inventory.iter().collect::<Vec<_>>();
         sorted_inventory.sort_by(|a, b| a.0.cmp(b.0));
-        ui.columns(2, |columns| {
+        let production_table = self.production_table_theoretical();
+        ui.columns(5, |columns| {
             for (good, amount) in sorted_inventory {
                 columns[0].label(good.to_string());
                 columns[1].with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
                     ui.label(RichText::new(format!("{:.0}", amount.floor())));
+                });
+                let alt = &(F::from(I::from(0)), F::from(I::from(0)));
+                let (output, input) = production_table.get(good).unwrap_or(&alt);
+                columns[2].with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                    ui.label(RichText::new(format!("{}/s", output)));
+                });
+                columns[3].with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                    ui.label(RichText::new(format!("{}/s", -input)));
+                });
+                columns[4].with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                    ui.label(RichText::new(format!("{}/s", output - input)));
                 });
             }
         });
@@ -117,7 +143,9 @@ impl Default for IdleGame {
 impl IdleGame {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+            let mut game: Self = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+            game.prev_time = chrono::Utc::now();
+            return game;
         }
 
         Default::default()
@@ -128,7 +156,7 @@ const DEBUG: bool = true;
 
 impl eframe::App for IdleGame {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let tick_rate = F::new(I::from(1), I::from(1));
+        let tick_rate = F::new(I::from(1), I::from(20));
         let tick_limit = 100;
         let now = chrono::Utc::now();
 
@@ -139,7 +167,7 @@ impl eframe::App for IdleGame {
         self.prev_time = chrono::Utc::now();
         let mut ticks = 0;
         while self.game_timer >= tick_rate.clone() && ticks < tick_limit {
-            self.game_state.tick();
+            self.game_state.tick(&tick_rate);
             self.game_timer -= tick_rate.clone();
             ticks += 1;
         }
@@ -183,7 +211,7 @@ impl eframe::App for IdleGame {
                     ui.add(egui::Separator::default().horizontal().spacing(4.0));
                     if DEBUG {
                         let mut temp = self.debug_amt_slider.to_i64().unwrap();
-                        ui.add(egui::Slider::new(&mut temp, 0..=1000).text("Debug Amount"));
+                        ui.add(egui::Slider::new(&mut temp, -1000..=1000).text("Debug Amount"));
                         self.debug_amt_slider = I::from(temp);
                         let debug_amt = F::new(self.debug_amt_slider.clone(), I::from(1));
                         if ui.button(format!("Debug: Add {} seconds", debug_amt)).clicked() {
