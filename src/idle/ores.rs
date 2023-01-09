@@ -5,8 +5,9 @@ use rand::prelude::*;
 #[serde(default)]
 pub struct OreMinigame {
     order: Vec<u32>,
-    pressed: Vec<u32>,
+    next: u32,
     difficulty: u32,
+    failed: bool,
 }
 
 impl Default for OreMinigame {
@@ -18,8 +19,9 @@ impl Default for OreMinigame {
                 vec.shuffle(&mut rng);
                 vec
             },
-            pressed: Vec::new(),
+            next: 1,
             difficulty: 5,
+            failed: false,
         }
     }
 }
@@ -33,17 +35,22 @@ impl OreMinigame {
                 vec.shuffle(&mut rng);
                 vec
             },
-            pressed: Vec::new(),
+            next: 1,
             difficulty,
+            failed: false,
         }
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) -> &mut Self {
         ui.horizontal(|ui| {
-            for (_i, value) in self.order.iter_mut().enumerate() {
-                let button = ui.add_enabled(!self.pressed.contains(value), egui::Button::new(format!("{}", value)));
+            for (_i, value) in self.order.iter().enumerate() {
+                let button = ui.add_enabled(value >= &self.next, egui::Button::new(format!("{}", value)));
                 if button.clicked() {
-                    self.pressed.push(*value);
+                    if value == &self.next {
+                        self.next += 1;
+                    } else {
+                        self.failed = true;
+                    }
                 }
             }
         });
@@ -51,21 +58,7 @@ impl OreMinigame {
     }
 
     pub fn is_failed(&self) -> bool {
-        // Failed if we press the sequence out of order. This occurs if the pressed sequence is not a prefix of the order sequence.
-        let mut pressed_iter = self.pressed.iter();
-        for value in 1..=self.difficulty {
-            match pressed_iter.next() {
-                Some(pressed_value) => {
-                    if *pressed_value != value {
-                        return true;
-                    }
-                },
-                None => {
-                    return false;
-                },
-            }
-        }
-        false
+        self.failed
     }
 
     pub fn reset(&mut self) -> &mut Self {
@@ -74,7 +67,7 @@ impl OreMinigame {
     }
 
     pub fn is_solved(&self) -> bool {
-        self.pressed.len() == self.order.len() && !self.is_failed()
+        self.next > self.difficulty
     }
 
     pub fn reset_if_failed(&mut self) -> &mut Self {
