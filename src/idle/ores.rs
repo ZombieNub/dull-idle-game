@@ -44,14 +44,21 @@ impl OreMinigame {
     pub fn ui(&mut self, ui: &mut egui::Ui) -> &mut Self {
         ui.horizontal(|ui| {
             for (_i, value) in self.order.iter().enumerate() {
-                let button = ui.add_enabled(value >= &self.next, egui::Button::new(format!("{}", value)));
-                if button.clicked() {
+                ui.scope(|ui| {
                     if value == &self.next {
-                        self.next += 1;
-                    } else {
-                        self.failed = true;
+                        ui.visuals_mut().widgets.inactive.bg_fill = egui::Color32::from_rgb(93, 132, 79);
+                        ui.visuals_mut().widgets.hovered.bg_fill = egui::Color32::from_rgb(123, 167, 107);
+                        ui.visuals_mut().widgets.active.bg_fill = egui::Color32::from_rgb(93, 132, 79);
                     }
-                }
+                    let button = ui.add_enabled(value >= &self.next, egui::Button::new(format!("{}", value)));
+                    if button.clicked() {
+                        if value == &self.next {
+                            self.next += 1;
+                        } else {
+                            self.failed = true;
+                        }
+                    }
+                });
             }
         });
         self
