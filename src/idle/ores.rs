@@ -46,9 +46,9 @@ impl OreMinigame {
             for (_i, value) in self.order.iter().enumerate() {
                 ui.scope(|ui| {
                     if value == &self.next {
-                        ui.visuals_mut().widgets.inactive.bg_fill = egui::Color32::from_rgb(93, 132, 79);
-                        ui.visuals_mut().widgets.hovered.bg_fill = egui::Color32::from_rgb(123, 167, 107);
-                        ui.visuals_mut().widgets.active.bg_fill = egui::Color32::from_rgb(93, 132, 79);
+                        ui.visuals_mut().widgets.inactive.bg_fill = egui::Color32::from_rgb(73, 102, 59);
+                        ui.visuals_mut().widgets.hovered.bg_fill = egui::Color32::from_rgb(73, 102, 59);
+                        ui.visuals_mut().widgets.active.bg_fill = egui::Color32::from_rgb(73, 102, 59);
                     }
                     let button = ui.add_enabled(value >= &self.next, egui::Button::new(format!("{}", value)));
                     if button.clicked() {

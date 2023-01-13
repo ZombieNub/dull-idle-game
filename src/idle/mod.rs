@@ -69,47 +69,22 @@ impl GameState {
         }
         hashmap
     }
-
-    fn display_list(&self, ui: &mut Ui) {
-        let mut sorted_inventory = self.inventory.iter().collect::<Vec<_>>();
-        sorted_inventory.sort_by(|a, b| a.0.cmp(b.0));
-        let production_table = self.production_table_theoretical();
-        ui.columns(5, |columns| {
-            for (good, amount) in sorted_inventory {
-                columns[0].label(good.to_string());
-                columns[1].with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                    ui.label(RichText::new(format!("{:.0}", amount.floor())));
-                });
-                let alt = &(F::from(I::from(0)), F::from(I::from(0)));
-                let (output, input) = production_table.get(good).unwrap_or(&alt);
-                columns[2].with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                    ui.label(RichText::new(format!("{}/s", output)));
-                });
-                columns[3].with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                    ui.label(RichText::new(format!("{}/s", -input)));
-                });
-                columns[4].with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                    ui.label(RichText::new(format!("{}/s", output - input)));
-                });
-            }
-        });
-    }
 }
 
 // We'll need an enum for the radio buttons that determine which section of the game the player is viewing.
 #[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone, Copy, EnumIter)]
-enum Section {
+enum Selection {
     Summary,
     Metallurgy,
 }
 
-impl Default for Section {
+impl Default for Selection {
     fn default() -> Self {
         Self::Summary
     }
 }
 
-impl Display for Section {
+impl Display for Selection {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Summary => write!(f, "Summary"),
@@ -124,7 +99,8 @@ pub struct IdleGame {
     prev_time: chrono::DateTime<chrono::Utc>,
     game_timer: F,
     game_state: GameState,
-    selection: Section,
+    producer_index_marked_for_deletion: Option<usize>,
+    selection: Selection,
     debug_amt_slider: I,
 }
 
@@ -132,9 +108,10 @@ impl Default for IdleGame {
     fn default() -> Self {
         Self {
             prev_time: chrono::Utc::now(),
-            game_state: GameState::default(),
             game_timer: F::new(I::from(0), I::from(1)),
-            selection: Section::default(),
+            game_state: GameState::default(),
+            producer_index_marked_for_deletion: None,
+            selection: Selection::default(),
             debug_amt_slider: I::from(100),
         }
     }
@@ -149,6 +126,34 @@ impl IdleGame {
         }
 
         Default::default()
+    }
+
+    fn display_inventory_grid(&self, ui: &mut Ui) {
+        let mut sorted_inventory = self.game_state.inventory.iter().collect::<Vec<_>>();
+        sorted_inventory.sort_by(|a, b| a.0.cmp(b.0));
+        let production_table = self.game_state.production_table_theoretical();
+        ui.with_layout(egui::Layout::left_to_right(Align::Min), |ui| {
+            egui::Grid::new("inventory_grid").striped(true).show(ui, |grid_ui| {
+                for (good, amount) in sorted_inventory {
+                    grid_ui.label(good.to_string());
+                    grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                        ui.label(RichText::new(format!("{:.0}", amount.floor())));
+                    });
+                    let alt = &(F::from(I::from(0)), F::from(I::from(0)));
+                    let (output, input) = production_table.get(good).unwrap_or(&alt);
+                    grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                        ui.label(RichText::new(format!("{}/s", output)));
+                    });
+                    grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                        ui.label(RichText::new(format!("{}/s", -input)));
+                    });
+                    grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                        ui.label(RichText::new(format!("{}/s", output - input)));
+                    });
+                    grid_ui.end_row();
+                }
+            });
+        });
     }
 }
 
@@ -184,29 +189,40 @@ impl eframe::App for IdleGame {
             });
         });
 
-        egui::SidePanel::left("side_panel").show(ctx, |ui| {
+        egui::SidePanel::left("inventory_panel").show(ctx, |ui| {
             ui.heading("Inventory");
-            self.game_state.display_list(ui);
+            self.display_inventory_grid(ui);
         });
 
         egui::SidePanel::right("producers_panel").show(ctx, |ui| {
             ui.heading("Producers");
-            for producer in self.game_state.producers.iter() {
-                ui.label(producer.to_string());
-            }
+            egui::Grid::new("producers_grid").striped(true).show(ui, |grid_ui| {
+                for (i, producer) in self.game_state.producers.iter().enumerate() {
+                    grid_ui.label(producer.to_string());
+                    if grid_ui.button("X").clicked() {
+                        self.producer_index_marked_for_deletion = Some(i);
+                    }
+                    grid_ui.end_row();
+                }
+            });
         });
+
+        if let Some(i) = self.producer_index_marked_for_deletion {
+            self.game_state.producers.remove(i);
+            self.producer_index_marked_for_deletion = None;
+        }
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // I'll need something to replicate a header bar. Top panel doesn't work as it's not a widget.
             // Guess I can mess around with styles to make it look like a header bar.
             ui.horizontal_top(|ui| {
-                for section in Section::iter() {
+                for section in Selection::iter() {
                     ui.selectable_value(&mut self.selection, section, section.to_string());
                 }
             });
             ui.add(egui::Separator::default().horizontal().spacing(6.0));
             match self.selection {
-                Section::Summary => {
+                Selection::Summary => {
                     ui.heading("Summary");
                     ui.add(egui::Separator::default().horizontal().spacing(4.0));
                     if DEBUG {
@@ -237,7 +253,7 @@ impl eframe::App for IdleGame {
                         }
                     }
                 }
-                Section::Metallurgy => {
+                Selection::Metallurgy => {
                     ui.heading("Metallurgy");
                     ui.add(egui::Separator::default().horizontal().spacing(4.0));
                     ui.label("To mine a single ore, click the buttons in order from lowest to highest.\nThe order will randomly change every time you mine an ore, or click the buttons in the wrong order.");
