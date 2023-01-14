@@ -22,9 +22,8 @@ type I = BigInt;
 #[serde(default)]
 struct GameState {
     inventory: HashMap<Good, F>,
-    producers: Vec<Producer>,
     ore_minigames: HashMap<Good, ores::OreMinigame>,
-    elements: HashMap<usize, element::Element>,
+    elements: HashMap<usize, Element>,
 }
 
 impl Default for GameState {
@@ -36,9 +35,6 @@ impl Default for GameState {
                     map.insert(good, F::new(I::from(0), I::from(1)));
                 }
                 map
-            },
-            producers: {
-                Vec::new()
             },
             ore_minigames: {
                 let mut map = HashMap::new();
@@ -55,20 +51,30 @@ impl Default for GameState {
 impl GameState {
     // Updates the game state by a single tick.
     fn tick(&mut self, tick_rate: &F) {
-        for producer in self.producers.iter() {
-            producer.tick(&mut self.inventory, tick_rate);
+        for (_id, element) in self.elements.iter_mut() {
+            match element.variant {
+                ElemVariant::Producer(producer) => {
+                    producer.tick(&mut self.inventory, tick_rate);
+                }
+                _ => {}
+            }
         }
     }
 
     fn production_table_theoretical(&self) -> HashMap<Good, (F, F)> {
         let mut hashmap = HashMap::new();
-        for producer in self.producers.iter() {
-            let properties = producer.properties();
-            for (good, amount) in properties.outputs.iter() {
-                hashmap.entry(*good).or_insert((F::from(I::from(0)), F::from(I::from(0)))).0 += amount;
-            }
-            for (good, amount) in properties.inputs.iter() {
-                hashmap.entry(*good).or_insert((F::from(I::from(0)), F::from(I::from(0)))).1 += amount;
+        for (_id, element) in self.elements.iter() {
+            match element.variant {
+                ElemVariant::Producer(producer) => {
+                    let properties = producer.properties();
+                    for (good, amount) in properties.outputs.iter() {
+                        hashmap.entry(*good).or_insert((F::from(I::from(0)), F::from(I::from(0)))).0 += amount;
+                    }
+                    for (good, amount) in properties.inputs.iter() {
+                        hashmap.entry(*good).or_insert((F::from(I::from(0)), F::from(I::from(0)))).1 += amount;
+                    }
+                }
+                _ => {}
             }
         }
         hashmap
@@ -201,22 +207,27 @@ impl eframe::App for IdleGame {
         egui::SidePanel::right("producers_panel").show(ctx, |ui| {
             ui.heading("Producers");
             egui::Grid::new("producers_grid").striped(true).show(ui, |grid_ui| {
-                for (i, producer) in self.game_state.producers.iter().enumerate() {
-                    grid_ui.label(producer.to_string());
-                    if grid_ui.button("X").clicked() {
-                        self.producer_index_marked_for_deletion = Some(i);
+                for (id, element) in self.game_state.elements.iter_mut() {
+                    match element.variant {
+                        ElemVariant::Producer(producer) => {
+                            grid_ui.label(producer.to_string());
+                            if grid_ui.button("X").clicked() {
+                                self.producer_index_marked_for_deletion = Some(*id);
+                            }
+                            grid_ui.end_row();
+                        }
+                        _ => {}
                     }
-                    grid_ui.end_row();
                 }
             });
         });
 
         if let Some(i) = self.producer_index_marked_for_deletion {
-            self.game_state.producers.remove(i);
+            self.game_state.elements.remove(&i);
             self.producer_index_marked_for_deletion = None;
         }
 
-        for (window_index, element) in self.game_state.elements.iter_mut() {
+        for (_window_index, element) in self.game_state.elements.iter_mut() {
             let Element {variant, window_id, is_open} = element;
             egui::Window::new(window_id.clone()).open(is_open).show(ctx, |ui| {
                 variant.window_render(ui);
@@ -264,10 +275,18 @@ impl eframe::App for IdleGame {
                                     .or_insert(debug_amt.clone());
                             }
                             if ui.button(format!("Debug: Add {} gravity drill", ore)).clicked() {
-                                self.game_state.producers.push(Producer::GravityDrill(ore));
+                                self.game_state.elements.insert(self.game_state.elements.len(), Element {
+                                    variant: ElemVariant::Producer(Producer::GravityDrill(ore)),
+                                    window_id: format!("{} Gravity Drill", ore),
+                                    is_open: false,
+                                });
                             }
                             if ui.button(format!("Debug: Add {} coal drill", ore)).clicked() {
-                                self.game_state.producers.push(Producer::CoalDrill(ore));
+                                self.game_state.elements.insert(self.game_state.elements.len(), Element {
+                                    variant: ElemVariant::Producer(Producer::CoalDrill(ore)),
+                                    window_id: format!("{} Coal Drill", ore),
+                                    is_open: false,
+                                });
                             }
                         }
                     }
