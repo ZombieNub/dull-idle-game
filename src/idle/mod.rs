@@ -208,9 +208,12 @@ impl eframe::App for IdleGame {
             ui.heading("Producers");
             egui::Grid::new("producers_grid").striped(true).show(ui, |grid_ui| {
                 for (id, element) in self.game_state.elements.iter_mut() {
-                    match element.variant {
+                    let Element {variant, is_open, ..} = element;
+                    match variant {
                         ElemVariant::Producer(producer) => {
-                            grid_ui.label(producer.to_string());
+                            if grid_ui.button(producer.to_string()).clicked() {
+                                *is_open = !*is_open;
+                            }
                             if grid_ui.button("X").clicked() {
                                 self.producer_index_marked_for_deletion = Some(*id);
                             }
@@ -274,17 +277,18 @@ impl eframe::App for IdleGame {
                                     .and_modify(|x| *x += debug_amt.clone())
                                     .or_insert(debug_amt.clone());
                             }
+                            let next_id = self.game_state.elements.len();
                             if ui.button(format!("Debug: Add {} gravity drill", ore)).clicked() {
-                                self.game_state.elements.insert(self.game_state.elements.len(), Element {
+                                self.game_state.elements.insert(next_id, Element {
                                     variant: ElemVariant::Producer(Producer::GravityDrill(ore)),
-                                    window_id: format!("{} Gravity Drill", ore),
+                                    window_id: format!("{}: {} Gravity Drill", next_id, ore),
                                     is_open: false,
                                 });
                             }
                             if ui.button(format!("Debug: Add {} coal drill", ore)).clicked() {
-                                self.game_state.elements.insert(self.game_state.elements.len(), Element {
+                                self.game_state.elements.insert(next_id, Element {
                                     variant: ElemVariant::Producer(Producer::CoalDrill(ore)),
-                                    window_id: format!("{} Coal Drill", ore),
+                                    window_id: format!("{}: {} Coal Drill", next_id, ore),
                                     is_open: false,
                                 });
                             }
