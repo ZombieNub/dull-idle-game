@@ -5,6 +5,7 @@ use egui::widget_text::RichText;
 use num::{BigInt, BigRational, ToPrimitive};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
+use crate::idle::element::{Element, ElemVariant};
 use crate::idle::goods::{Good, GoodGroup};
 use crate::idle::producers::{Producer};
 
@@ -12,6 +13,7 @@ mod lib;
 mod goods;
 mod ores;
 mod producers;
+mod element;
 
 type F = BigRational;
 type I = BigInt;
@@ -22,6 +24,7 @@ struct GameState {
     inventory: HashMap<Good, F>,
     producers: Vec<Producer>,
     ore_minigames: HashMap<Good, ores::OreMinigame>,
+    elements: HashMap<usize, element::Element>,
 }
 
 impl Default for GameState {
@@ -43,7 +46,8 @@ impl Default for GameState {
                     map.insert(good, ores::OreMinigame::new(good.properties().difficulty));
                 }
                 map
-            }
+            },
+            elements: HashMap::new(),
         }
     }
 }
@@ -212,6 +216,13 @@ impl eframe::App for IdleGame {
             self.producer_index_marked_for_deletion = None;
         }
 
+        for (window_index, element) in self.game_state.elements.iter_mut() {
+            let Element {variant, window_id, is_open} = element;
+            egui::Window::new(window_id.clone()).open(is_open).show(ctx, |ui| {
+                variant.window_render(ui);
+            });
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             // I'll need something to replicate a header bar. Top panel doesn't work as it's not a widget.
             // Guess I can mess around with styles to make it look like a header bar.
@@ -226,6 +237,14 @@ impl eframe::App for IdleGame {
                     ui.heading("Summary");
                     ui.add(egui::Separator::default().horizontal().spacing(4.0));
                     if DEBUG {
+                        if ui.button("Add blank window").clicked() {
+                            let next_window_id = self.game_state.elements.len();
+                            self.game_state.elements.insert(next_window_id, Element {
+                                variant: ElemVariant::Blank,
+                                window_id: format!("Blank {}", next_window_id),
+                                is_open: true,
+                            });
+                        }
                         let mut temp = self.debug_amt_slider.to_i64().unwrap();
                         ui.add(egui::Slider::new(&mut temp, -1000..=1000).text("Debug Amount"));
                         self.debug_amt_slider = I::from(temp);
