@@ -1,6 +1,12 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+/*
+All of this is default code from the eframe template. I'm not touching it, and I'm not going to comment it.
+Not to mention, it's not even my code, so I can't even provide my own commentary on it if I wanted to.
+Entirely because I have no idea what it does or what I can say about it.
+ */
+
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
