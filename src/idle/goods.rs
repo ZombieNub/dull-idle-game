@@ -3,7 +3,19 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 // An enum that describes the different types of goods.
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone, Copy, EnumIter, Hash, PartialOrd, Ord, Debug)]
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumIter,
+    Hash,
+    PartialOrd,
+    Ord,
+    Debug,
+)]
 pub enum Good {
     Money,
     IronOre,
@@ -13,7 +25,19 @@ pub enum Good {
 }
 
 // An enum for the different groups of goods. Used for iteration and defaults.
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone, Copy, EnumIter, Hash, PartialOrd, Ord, Debug)]
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumIter,
+    Hash,
+    PartialOrd,
+    Ord,
+    Debug,
+)]
 pub enum GoodGroup {
     Money,
     Ore,
@@ -23,7 +47,7 @@ pub enum GoodGroup {
 #[derive(PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord, Debug)]
 pub struct GoodProperties {
     pub name: &'static str, // The name of the good
-    pub group: GoodGroup, // The group of the good
+    pub group: GoodGroup,   // The group of the good
     pub difficulty: u32, // The difficulty of the good. Used for determining the minigame difficulty.
 }
 
@@ -68,9 +92,7 @@ impl Good {
 
     // Returns an iterator of all goods in a group. Useful for UI elements.
     pub fn group_iter(group: GoodGroup) -> impl Iterator<Item = Good> {
-        let items = Good::iter().filter(move |good| {
-            good.properties().group == group
-        });
+        let items = Good::iter().filter(move |good| good.properties().group == group);
         items
     }
 }

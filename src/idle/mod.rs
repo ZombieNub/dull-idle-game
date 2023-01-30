@@ -1,19 +1,19 @@
-use std::collections::{HashMap};
-use std::fmt::{Display, Formatter};
-use egui::{Align, Ui};
+use crate::idle::element::{ElemVariant, Element};
+use crate::idle::goods::{Good, GoodGroup};
+use crate::idle::producers::Producer;
 use egui::widget_text::RichText;
+use egui::{Align, Ui};
 use num::{BigInt, BigRational, ToPrimitive};
+use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
-use crate::idle::element::{Element, ElemVariant};
-use crate::idle::goods::{Good, GoodGroup};
-use crate::idle::producers::{Producer};
 
-mod lib;
+mod element;
 mod goods;
+mod lib;
 mod ores;
 mod producers;
-mod element;
 
 // Type aliases because screw typing all that out
 type F = BigRational;
@@ -27,7 +27,7 @@ struct GameState {
     ore_minigames: HashMap<Good, ores::OreMinigame>, // The current state of the ore minigames
     // Check ores.rs for more info on the ore minigames
     elements: HashMap<usize, Element>, // The elements currently in the game
-    // Check element.rs for more info on elements
+                                       // Check element.rs for more info on elements
 }
 
 // Default implementation for GameState. Used for deserialization, and for resetting the game.
@@ -91,10 +91,16 @@ impl GameState {
                     let properties = producer.properties();
                     // Iterate over the inputs and outputs, and add them to the hashmap.
                     for (good, amount) in properties.outputs.iter() {
-                        hashmap.entry(*good).or_insert((F::from(I::from(0)), F::from(I::from(0)))).0 += amount;
+                        hashmap
+                            .entry(*good)
+                            .or_insert((F::from(I::from(0)), F::from(I::from(0))))
+                            .0 += amount;
                     }
                     for (good, amount) in properties.inputs.iter() {
-                        hashmap.entry(*good).or_insert((F::from(I::from(0)), F::from(I::from(0)))).1 += amount;
+                        hashmap
+                            .entry(*good)
+                            .or_insert((F::from(I::from(0)), F::from(I::from(0))))
+                            .1 += amount;
                     }
                 }
                 _ => {}
@@ -186,26 +192,28 @@ impl IdleGame {
         sorted_inventory.sort_by(|a, b| a.0.cmp(b.0));
         let production_table = self.game_state.production_table_theoretical();
         ui.with_layout(egui::Layout::left_to_right(Align::Min), |ui| {
-            egui::Grid::new("inventory_grid").striped(true).show(ui, |grid_ui| {
-                for (good, amount) in sorted_inventory {
-                    grid_ui.label(good.to_string());
-                    grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                        ui.label(RichText::new(format!("{:.0}", amount.floor())));
-                    });
-                    let alt = &(F::from(I::from(0)), F::from(I::from(0)));
-                    let (output, input) = production_table.get(good).unwrap_or(&alt);
-                    grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                        ui.label(RichText::new(format!("{}/s", output)));
-                    });
-                    grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                        ui.label(RichText::new(format!("{}/s", -input)));
-                    });
-                    grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                        ui.label(RichText::new(format!("{}/s", output - input)));
-                    });
-                    grid_ui.end_row();
-                }
-            });
+            egui::Grid::new("inventory_grid")
+                .striped(true)
+                .show(ui, |grid_ui| {
+                    for (good, amount) in sorted_inventory {
+                        grid_ui.label(good.to_string());
+                        grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                            ui.label(RichText::new(format!("{:.0}", amount.floor())));
+                        });
+                        let alt = &(F::from(I::from(0)), F::from(I::from(0)));
+                        let (output, input) = production_table.get(good).unwrap_or(&alt);
+                        grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                            ui.label(RichText::new(format!("{}/s", output)));
+                        });
+                        grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                            ui.label(RichText::new(format!("{}/s", -input)));
+                        });
+                        grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                            ui.label(RichText::new(format!("{}/s", output - input)));
+                        });
+                        grid_ui.end_row();
+                    }
+                });
         });
     }
 }
@@ -263,26 +271,30 @@ impl eframe::App for IdleGame {
         // Renders the right production panel. Should be replaced with columns and put into the center panel.
         egui::SidePanel::right("producers_panel").show(ctx, |ui| {
             ui.heading("Producers");
-            egui::Grid::new("producers_grid").striped(true).show(ui, |grid_ui| {
-                for (id, element) in self.game_state.elements.iter_mut() {
-                    let Element {variant, is_open, ..} = element;
-                    match variant {
-                        // Renders the producer row for each producer.
-                        ElemVariant::Producer(producer) => {
-                            // Renders the producer name, and a button to open the producer's window.
-                            if grid_ui.button(producer.to_string()).clicked() {
-                                *is_open = !*is_open;
+            egui::Grid::new("producers_grid")
+                .striped(true)
+                .show(ui, |grid_ui| {
+                    for (id, element) in self.game_state.elements.iter_mut() {
+                        let Element {
+                            variant, is_open, ..
+                        } = element;
+                        match variant {
+                            // Renders the producer row for each producer.
+                            ElemVariant::Producer(producer) => {
+                                // Renders the producer name, and a button to open the producer's window.
+                                if grid_ui.button(producer.to_string()).clicked() {
+                                    *is_open = !*is_open;
+                                }
+                                // Renders a button to delete the producer.
+                                if grid_ui.button("X").clicked() {
+                                    self.producer_index_marked_for_deletion = Some(*id);
+                                }
+                                grid_ui.end_row();
                             }
-                            // Renders a button to delete the producer.
-                            if grid_ui.button("X").clicked() {
-                                self.producer_index_marked_for_deletion = Some(*id);
-                            }
-                            grid_ui.end_row();
+                            _ => {}
                         }
-                        _ => {}
                     }
-                }
-            });
+                });
         });
 
         // Hacky way to delete producers. This is because I can't figure out how to delete elements from a hashmap while mutably iterating over it.
@@ -296,11 +308,17 @@ impl eframe::App for IdleGame {
         // Renders each element's window.
         for (_window_index, element) in self.game_state.elements.iter_mut() {
             // We need to destruct the element to get mutable access to all of its fields. This is to avoid mutably borrowing the element twice in two different places.
-            let Element {variant, window_id, is_open} = element;
+            let Element {
+                variant,
+                window_id,
+                is_open,
+            } = element;
             // If is_open is false, the window will not be rendered. This is intended behavior from egui which simplifies the code.
-            egui::Window::new(window_id.clone()).open(is_open).show(ctx, |ui| {
-                variant.window_render(ui);
-            });
+            egui::Window::new(window_id.clone())
+                .open(is_open)
+                .show(ctx, |ui| {
+                    variant.window_render(ui);
+                });
         }
 
         // Renders the center panel. This is where the game will be played.

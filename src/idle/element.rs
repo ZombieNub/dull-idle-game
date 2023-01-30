@@ -32,7 +32,7 @@ impl Default for ElemVariant {
 #[serde(default)]
 pub struct Element {
     pub variant: ElemVariant, // The variant of the element.
-    pub window_id: String, // The window_id of the element. This is used to identify the window.
+    pub window_id: String,    // The window_id of the element. This is used to identify the window.
     // NEVER CHANGE THIS AFTER THE WINDOW IS CREATED.
     // NEVER HAVE TWO ELEMENTS WITH THE SAME WINDOW_ID.
     // The ID is how egui identifies the window, and if you change it, egui will create a new window.
@@ -62,7 +62,8 @@ impl ElemVariant {
         match self {
             ElemVariant::Blank => {
                 // The crab shows up as a box. I should probably enable unicode/emoji features, or change the font.
-                ui.label("Hello! I am a blank element! I exist for testing purposes. 🦀"); // Ferris forever!
+                ui.label("Hello! I am a blank element! I exist for testing purposes. 🦀");
+                // Ferris forever!
             }
             ElemVariant::Good(good) => {
                 ui.label(good.properties().name);

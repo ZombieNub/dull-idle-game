@@ -10,9 +10,9 @@ use rand::prelude::*;
 #[serde(default)]
 pub struct OreMinigame {
     order: Vec<u32>, // A list of numbers from 1 to difficulty, in a random order.
-    next: u32, // The next number the player needs to click.
+    next: u32,       // The next number the player needs to click.
     difficulty: u32, // The difficulty of the minigame. This is the number of buttons.
-    failed: bool, // Whether the player has failed the minigame.
+    failed: bool,    // Whether the player has failed the minigame.
 }
 
 // Default implementation for the ore minigame, assuming a difficulty of 5.
@@ -57,17 +57,23 @@ impl OreMinigame {
                     // Render each individual button, depending on its value.
                     if value == &self.next {
                         // If this button is the next button to be clicked, set its fill color to a dark green.
-                        ui.visuals_mut().widgets.inactive.bg_fill = egui::Color32::from_rgb(73, 102, 59);
-                        ui.visuals_mut().widgets.hovered.bg_fill = egui::Color32::from_rgb(73, 102, 59);
-                        ui.visuals_mut().widgets.active.bg_fill = egui::Color32::from_rgb(73, 102, 59);
+                        ui.visuals_mut().widgets.inactive.bg_fill =
+                            egui::Color32::from_rgb(73, 102, 59);
+                        ui.visuals_mut().widgets.hovered.bg_fill =
+                            egui::Color32::from_rgb(73, 102, 59);
+                        ui.visuals_mut().widgets.active.bg_fill =
+                            egui::Color32::from_rgb(73, 102, 59);
                     }
                     // Render a button as inactive if the player has already clicked it.
-                    let button = ui.add_enabled(value >= &self.next, egui::Button::new(format!("{}", value)));
+                    let button = ui
+                        .add_enabled(value >= &self.next, egui::Button::new(format!("{}", value)));
                     // Depending on if the button was the next button to be clicked, either increment the next button to be clicked or fail the minigame.
                     if button.clicked() {
-                        if value == &self.next { // If the button was the next button to be clicked, increment the next button to be clicked.
+                        if value == &self.next {
+                            // If the button was the next button to be clicked, increment the next button to be clicked.
                             self.next += 1;
-                        } else { // Otherwise, fail the minigame.
+                        } else {
+                            // Otherwise, fail the minigame.
                             self.failed = true;
                         }
                     }

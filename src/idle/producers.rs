@@ -1,16 +1,28 @@
+use crate::idle::goods::{Good, GoodGroup};
+use num::{BigInt, BigRational};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use num::{BigInt, BigRational};
 use strum_macros::EnumIter;
-use crate::idle::goods::{Good, GoodGroup};
 
 type F = BigRational;
 type I = BigInt;
 
 // Producer variants
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone, Copy, EnumIter, Hash, PartialOrd, Ord, Debug)]
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumIter,
+    Hash,
+    PartialOrd,
+    Ord,
+    Debug,
+)]
 pub enum Producer {
-    None, // Blank producer for debug purposes
+    None,               // Blank producer for debug purposes
     GravityDrill(Good), // Drills ore for free. Not intended to be used in the game, only for debugging.
     // I mean come on it's called a gravity drill. How does gravity drill for free?
     CoalDrill(Good), // Drills ore at a rate of 1 per second, at a cost of 1/4 coal per second.
@@ -20,8 +32,8 @@ pub enum Producer {
 // This uses a pattern I call "databasing", where the properties of a producer are stored in a properties function.
 // The structure of the properties is as follows:
 pub struct ProducerProperties {
-    pub name: &'static str, // The name of the producer
-    pub cost: F, // The cost of the producer
+    pub name: &'static str,        // The name of the producer
+    pub cost: F,                   // The cost of the producer
     pub outputs: HashMap<Good, F>, // The outputs of the producer. Consumes 1 input per second (up to the maximum input).
     pub inputs: HashMap<Good, F>, // The inputs of the producer. Produces 1 output per second (up to the maximum output).
 }
@@ -44,9 +56,7 @@ impl Producer {
                     map.insert(*good, F::from(I::from(1)));
                     map
                 },
-                inputs: {
-                    HashMap::new()
-                },
+                inputs: { HashMap::new() },
             },
             Producer::CoalDrill(good) => ProducerProperties {
                 name: "Coal Drill",
