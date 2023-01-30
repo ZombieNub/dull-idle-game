@@ -65,8 +65,8 @@ impl OreMinigame {
                             egui::Color32::from_rgb(73, 102, 59);
                     }
                     // Render a button as inactive if the player has already clicked it.
-                    let button = ui
-                        .add_enabled(value >= &self.next, egui::Button::new(format!("{value}")));
+                    let button =
+                        ui.add_enabled(value >= &self.next, egui::Button::new(format!("{value}")));
                     // Depending on if the button was the next button to be clicked, either increment the next button to be clicked or fail the minigame.
                     if button.clicked() {
                         if value == &self.next {

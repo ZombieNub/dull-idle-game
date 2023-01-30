@@ -10,8 +10,7 @@ The window_id is used to identify the window, and is_open is used to determine w
 use crate::idle::{goods, producers};
 
 // The ElemVariant enum is used to store and describe the different types of elements.
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
-#[derive(Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Default)]
 pub enum ElemVariant {
     #[default]
     Blank, // Blank elements exist for testing purposes, and should (probably) never be used in the actual game.
@@ -21,7 +20,6 @@ pub enum ElemVariant {
 
 // Since we need to serialize and deserialize the elements, we need to implement the Serialize and Deserialize traits.
 // To do this, we need to implement Default, which is required for Deserialize.
-
 
 // The Element struct is used to store and describe the elements.
 // This only contains the variant and properties which are common across all elements.
