@@ -67,13 +67,10 @@ impl GameState {
         // This could probably be done in a more functional way, or abstracted into a function, but I'm lazy.
         // However, this appears more than once, so I should probably abstract it at some point.
         for (_id, element) in self.elements.iter_mut() {
-            match element.variant {
-                ElemVariant::Producer(producer) => {
-                    // Each producer's production is calculated by multiplying the production rate by the tick rate.
-                    // This allows the production rate to be in units of "per second" for easier reading and balancing.
-                    producer.tick(&mut self.inventory, tick_rate);
-                }
-                _ => {}
+            if let ElemVariant::Producer(producer) = element.variant {
+                // Each producer's production is calculated by multiplying the production rate by the tick rate.
+                // This allows the production rate to be in units of "per second" for easier reading and balancing.
+                producer.tick(&mut self.inventory, tick_rate);
             }
         }
     }
@@ -85,25 +82,22 @@ impl GameState {
         // It's good for now though.
         let mut hashmap = HashMap::new();
         for (_id, element) in self.elements.iter() {
-            match element.variant {
-                ElemVariant::Producer(producer) => {
-                    // Get the properties of the producer, which contains the inputs and outputs.
-                    let properties = producer.properties();
-                    // Iterate over the inputs and outputs, and add them to the hashmap.
-                    for (good, amount) in properties.outputs.iter() {
-                        hashmap
-                            .entry(*good)
-                            .or_insert((F::from(I::from(0)), F::from(I::from(0))))
-                            .0 += amount;
-                    }
-                    for (good, amount) in properties.inputs.iter() {
-                        hashmap
-                            .entry(*good)
-                            .or_insert((F::from(I::from(0)), F::from(I::from(0))))
-                            .1 += amount;
-                    }
+            if let ElemVariant::Producer(producer) = element.variant {
+                // Get the properties of the producer, which contains the inputs and outputs.
+                let properties = producer.properties();
+                // Iterate over the inputs and outputs, and add them to the hashmap.
+                for (good, amount) in properties.outputs.iter() {
+                    hashmap
+                        .entry(*good)
+                        .or_insert((F::from(I::from(0)), F::from(I::from(0))))
+                        .0 += amount;
                 }
-                _ => {}
+                for (good, amount) in properties.inputs.iter() {
+                    hashmap
+                        .entry(*good)
+                        .or_insert((F::from(I::from(0)), F::from(I::from(0))))
+                        .1 += amount;
+                }
             }
         }
         hashmap
@@ -201,9 +195,9 @@ impl IdleGame {
                             ui.label(RichText::new(format!("{:.0}", amount.floor())));
                         });
                         let alt = &(F::from(I::from(0)), F::from(I::from(0)));
-                        let (output, input) = production_table.get(good).unwrap_or(&alt);
+                        let (output, input) = production_table.get(good).unwrap_or(alt);
                         grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                            ui.label(RichText::new(format!("{}/s", output)));
+                            ui.label(RichText::new(format!("{output}/s")));
                         });
                         grid_ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
                             ui.label(RichText::new(format!("{}/s", -input)));
@@ -278,20 +272,17 @@ impl eframe::App for IdleGame {
                         let Element {
                             variant, is_open, ..
                         } = element;
-                        match variant {
+                        if let ElemVariant::Producer(producer) = variant {
                             // Renders the producer row for each producer.
-                            ElemVariant::Producer(producer) => {
-                                // Renders the producer name, and a button to open the producer's window.
-                                if grid_ui.button(producer.to_string()).clicked() {
-                                    *is_open = !*is_open;
-                                }
-                                // Renders a button to delete the producer.
-                                if grid_ui.button("X").clicked() {
-                                    self.producer_index_marked_for_deletion = Some(*id);
-                                }
-                                grid_ui.end_row();
+                            // Renders the producer name, and a button to open the producer's window.
+                            if grid_ui.button(producer.to_string()).clicked() {
+                                *is_open = !*is_open;
                             }
-                            _ => {}
+                            // Renders a button to delete the producer.
+                            if grid_ui.button("X").clicked() {
+                                self.producer_index_marked_for_deletion = Some(*id);
+                            }
+                            grid_ui.end_row();
                         }
                     }
                 });
@@ -351,7 +342,7 @@ impl eframe::App for IdleGame {
                             let next_window_id = self.game_state.elements.len();
                             self.game_state.elements.insert(next_window_id, Element {
                                 variant: ElemVariant::Blank,
-                                window_id: format!("Blank {}", next_window_id),
+                                window_id: format!("Blank {next_window_id}"),
                                 is_open: true,
                             });
                         }
@@ -363,11 +354,11 @@ impl eframe::App for IdleGame {
                         self.debug_amt_slider = I::from(temp);
                         let debug_amt = F::new(self.debug_amt_slider.clone(), I::from(1));
                         // Renders a button that adds time to the game timer, causing the game to progress very quickly by a certain amount of time.
-                        if ui.button(format!("Debug: Add {} seconds", debug_amt)).clicked() {
+                        if ui.button(format!("Debug: Add {debug_amt} seconds")).clicked() {
                             self.game_timer += F::new(self.debug_amt_slider.clone(), I::from(1));
                         }
                         // Renders a button that adds a specified amount of dollars to the game state.
-                        if ui.button(format!("Debug: Add {} dollars", debug_amt.clone())).clicked() {
+                        if ui.button(format!("Debug: Add {debug_amt} dollars")).clicked() {
                             self.game_state.inventory.entry(Good::Money)
                                 .and_modify(|x| *x += debug_amt.clone())
                                 .or_insert(debug_amt.clone());
@@ -384,18 +375,18 @@ impl eframe::App for IdleGame {
                             // For more information, see line 326.
                             let next_id = self.game_state.elements.len();
                             // Renders a button that adds a Gravity Drill for the ore to the game state.
-                            if ui.button(format!("Debug: Add {} gravity drill", ore)).clicked() {
+                            if ui.button(format!("Debug: Add {ore} gravity drill")).clicked() {
                                 self.game_state.elements.insert(next_id, Element {
                                     variant: ElemVariant::Producer(Producer::GravityDrill(ore)),
-                                    window_id: format!("{}: {} Gravity Drill", next_id, ore),
+                                    window_id: format!("{next_id}: {ore} Gravity Drill"),
                                     is_open: false,
                                 });
                             }
                             // Renders a button that adds a Coal Drill for the ore to the game state.
-                            if ui.button(format!("Debug: Add {} coal drill", ore)).clicked() {
+                            if ui.button(format!("Debug: Add {ore} coal drill")).clicked() {
                                 self.game_state.elements.insert(next_id, Element {
                                     variant: ElemVariant::Producer(Producer::CoalDrill(ore)),
-                                    window_id: format!("{}: {} Coal Drill", next_id, ore),
+                                    window_id: format!("{next_id}: {ore} Coal Drill"),
                                     is_open: false,
                                 });
                             }
@@ -411,7 +402,7 @@ impl eframe::App for IdleGame {
                     egui::Grid::new("ore_interface").show(ui, |ui| {
                         for ore in Good::group_iter(GoodGroup::Ore) {
                             // Each ore has its own mini-game, which is rendered here.
-                            ui.label(format!("{}", ore));
+                            ui.label(format!("{ore}"));
                             // Get the relevant ore mini-game state. If one doesn't exist, create one with the relevant difficulty.
                             let om = self.game_state.ore_minigames.entry(ore).or_insert(ores::OreMinigame::new(ore.properties().difficulty));
                             ui.with_layout(egui::Layout::left_to_right(Align::Min), |ui| {

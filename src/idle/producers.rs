@@ -123,8 +123,8 @@ impl Display for Producer {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Producer::None => write!(f, "None"),
-            Producer::GravityDrill(good) => write!(f, "Gravity Drill ({})", good),
-            Producer::CoalDrill(good) => write!(f, "Coal Drill ({})", good),
+            Producer::GravityDrill(good) => write!(f, "Gravity Drill ({good})"),
+            Producer::CoalDrill(good) => write!(f, "Coal Drill ({good})"),
         }
     }
 }

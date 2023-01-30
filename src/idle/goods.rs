@@ -16,7 +16,9 @@ use strum_macros::EnumIter;
     Ord,
     Debug,
 )]
+#[derive(Default)]
 pub enum Good {
+    #[default]
     Money,
     IronOre,
     GoldOre,
@@ -92,8 +94,8 @@ impl Good {
 
     // Returns an iterator of all goods in a group. Useful for UI elements.
     pub fn group_iter(group: GoodGroup) -> impl Iterator<Item = Good> {
-        let items = Good::iter().filter(move |good| good.properties().group == group);
-        items
+        
+        Good::iter().filter(move |good| good.properties().group == group)
     }
 }
 
@@ -103,8 +105,4 @@ impl Display for Good {
     }
 }
 
-impl Default for Good {
-    fn default() -> Self {
-        Good::Money
-    }
-}
+

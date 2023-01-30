@@ -11,7 +11,9 @@ use crate::idle::{goods, producers};
 
 // The ElemVariant enum is used to store and describe the different types of elements.
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(Default)]
 pub enum ElemVariant {
+    #[default]
     Blank, // Blank elements exist for testing purposes, and should (probably) never be used in the actual game.
     Good(goods::Good), // Good elements are used to store and describe goods. Currently unused, but might be used to describe the goods in the inventory.
     Producer(producers::Producer), // Producer elements are used to store and describe producers.
@@ -19,11 +21,7 @@ pub enum ElemVariant {
 
 // Since we need to serialize and deserialize the elements, we need to implement the Serialize and Deserialize traits.
 // To do this, we need to implement Default, which is required for Deserialize.
-impl Default for ElemVariant {
-    fn default() -> Self {
-        ElemVariant::Blank
-    }
-}
+
 
 // The Element struct is used to store and describe the elements.
 // This only contains the variant and properties which are common across all elements.
